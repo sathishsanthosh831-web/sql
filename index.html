@@ -93,10 +93,12 @@
     top:0; left:0;
     width:100%;
     height:100%;
-    transform: scaleX(-1); /* mirror */
   }
-  video{ opacity:0; }
-  #overlay{ z-index:2; }
+  video{
+    transform: scaleX(-1); /* mirror the visible feed only */
+    object-fit: cover;
+  }
+  #overlay{ z-index:2; } /* not mirrored — JS already flips the x coordinate to match */
 
   /* viewfinder corner brackets — signature element */
   .bracket{
