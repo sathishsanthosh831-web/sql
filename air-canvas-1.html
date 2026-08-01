@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIR CANVAS — Light-Trail Hand Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #12101c;
+    --bg-deep: #0a0912;
+    --panel: #1a1728;
+    --line: #2e2a42;
+    --amber: #ffb454;
+    --cyan: #5eead4;
+    --violet: #b39ddb;
+    --paper: #f4f0ff;
+    --dim: #8b85a3;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, #221d38 0%, transparent 55%),
+      radial-gradient(ellipse at 100% 110%, #1c1830 0%, transparent 50%),
+      var(--bg);
+    color:var(--paper);
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:28px 16px 60px;
+  }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+
+  header{
+    width:100%;
+    max-width:980px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    margin-bottom:22px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:.22em;
+    color:var(--cyan);
+    text-transform:uppercase;
+  }
+  h1{
+    margin:4px 0 0;
+    font-size:clamp(28px, 4.2vw, 42px);
+    font-weight:700;
+    letter-spacing:-0.01em;
+    line-height:1;
+  }
+  h1 span{ color:var(--amber); }
+  .status-line{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--dim);
+    text-align:right;
+  }
+  .status-line b{ color:var(--paper); font-weight:600; }
+  .dot{
+    display:inline-block;
+    width:7px; height:7px;
+    border-radius:50%;
+    background:#5a5470;
+    margin-right:6px;
+    vertical-align:middle;
+  }
+  .dot.live{ background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
+
+  .stage{
+    position:relative;
+    width:100%;
+    max-width:980px;
+    aspect-ratio:4/3;
+    background:var(--bg-deep);
+    border-radius:4px;
+    overflow:hidden;
+    border:1px solid var(--line);
+    box-shadow: 0 30px 80px -30px rgba(0,0,0,.7);
+  }
+  video, canvas{
+    position:absolute;
+    top:0; left:0;
+    width:100%;
+    height:100%;
+    transform: scaleX(-1); /* mirror */
+  }
+  video{ opacity:0; }
+  #overlay{ z-index:2; }
+
+  /* viewfinder corner brackets — signature element */
+  .bracket{
+    position:absolute;
+    width:26px; height:26px;
+    border:2px solid var(--amber);
+    opacity:.85;
+    z-index:3;
+    pointer-events:none;
+  }
+  .bracket.tl{ top:14px; left:14px; border-right:none; border-bottom:none; }
+  .bracket.tr{ top:14px; right:14px; border-left:none; border-bottom:none; }
+  .bracket.bl{ bottom:14px; left:14px; border-right:none; border-top:none; }
+  .bracket.br{ bottom:14px; right:14px; border-left:none; border-top:none; }
+
+  .readout{
+    position:absolute;
+    top:14px; left:50px;
+    z-index:3;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--cyan);
+    letter-spacing:.04em;
+    text-shadow: 0 0 8px rgba(94,234,212,.5);
+    line-height:1.6;
+    pointer-events:none;
+  }
+  .readout .off{ color:var(--dim); text-shadow:none; }
+
+  .pinch-badge{
+    position:absolute;
+    bottom:14px; left:50px;
+    z-index:3;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    padding:4px 10px;
+    border-radius:2px;
+    border:1px solid var(--line);
+    background:rgba(10,9,18,.6);
+    backdrop-filter: blur(4px);
+    color:var(--dim);
+    transition: all .15s ease;
+  }
+  .pinch-badge.active{
+    color:var(--bg-deep);
+    background:var(--amber);
+    border-color:var(--amber);
+    box-shadow:0 0 18px rgba(255,180,84,.6);
+  }
+
+  .permission{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:14px;
+    z-index:5;
+    background:var(--bg-deep);
+    text-align:center;
+    padding:30px;
+  }
+  .permission p{ color:var(--dim); max-width:420px; font-size:14px; line-height:1.6; margin:0; }
+  button{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    border:none;
+    cursor:pointer;
+    transition: all .15s ease;
+  }
+  #startBtn{
+    background:var(--amber);
+    color:var(--bg-deep);
+    padding:12px 26px;
+    border-radius:3px;
+    letter-spacing:.02em;
+  }
+  #startBtn:hover{ box-shadow:0 0 24px rgba(255,180,84,.5); transform:translateY(-1px); }
+
+  /* controls */
+  .controls{
+    width:100%;
+    max-width:980px;
+    margin-top:16px;
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:16px 20px;
+  }
+  .control-group{ display:flex; align-items:center; gap:10px; }
+  .control-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10px;
+    letter-spacing:.14em;
+    color:var(--dim);
+    text-transform:uppercase;
+    margin-right:2px;
+  }
+  .swatch{
+    width:22px; height:22px;
+    border-radius:50%;
+    border:2px solid transparent;
+    cursor:pointer;
+    padding:0;
+  }
+  .swatch.selected{ border-color:var(--paper); transform:scale(1.15); }
+
+  input[type=range]{
+    -webkit-appearance:none;
+    width:110px;
+    height:3px;
+    background:var(--line);
+    border-radius:2px;
+    outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:13px; height:13px;
+    border-radius:50%;
+    background:var(--cyan);
+    cursor:pointer;
+    box-shadow:0 0 6px rgba(94,234,212,.7);
+  }
+
+  .ghost-btn{
+    background:transparent;
+    color:var(--dim);
+    border:1px solid var(--line) !important;
+    padding:8px 16px;
+    border-radius:3px;
+    font-size:12px;
+  }
+  .ghost-btn:hover{ color:var(--paper); border-color:var(--dim) !important; }
+
+  footer{
+    max-width:980px;
+    width:100%;
+    margin-top:18px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--dim);
+    line-height:1.7;
+  }
+  footer b{ color:var(--violet); }
+
+  @media (prefers-reduced-motion: reduce){
+    * { transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="eyebrow">Gesture-tracked light painting · runs locally in-browser</div>
+    <h1>AIR<span>CANVAS</span></h1>
+  </div>
+  <div class="status-line mono">
+    <div><span class="dot" id="statusDot"></span><span id="statusText">camera off</span></div>
+    <div><b id="fps">0</b> fps</div>
+  </div>
+</header>
+
+<div class="stage" id="stage">
+  <video id="video" playsinline></video>
+  <canvas id="overlay"></canvas>
+
+  <div class="bracket tl"></div>
+  <div class="bracket tr"></div>
+  <div class="bracket bl"></div>
+  <div class="bracket br"></div>
+
+  <div class="readout" id="readout">
+    X <span class="off">— — —</span><br>
+    Y <span class="off">— — —</span>
+  </div>
+
+  <div class="pinch-badge" id="pinchBadge">PINCH TO DRAW</div>
+
+  <div class="permission" id="permission">
+    <div class="eyebrow" style="color:var(--amber)">01 / ALLOW CAMERA</div>
+    <p>Draw in mid-air using your index finger. Pinch your thumb and index finger together to lower the "pen"; open them to lift it. Nothing is recorded or leaves your browser.</p>
+    <button id="startBtn">Enable camera & start</button>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="control-group">
+    <span class="control-label">Ink</span>
+    <button class="swatch selected" style="background:#ffb454" data-color="#ffb454"></button>
+    <button class="swatch" style="background:#5eead4" data-color="#5eead4"></button>
+    <button class="swatch" style="background:#b39ddb" data-color="#b39ddb"></button>
+    <button class="swatch" style="background:#f4f0ff" data-color="#f4f0ff"></button>
+  </div>
+  <div class="control-group">
+    <span class="control-label">Weight</span>
+    <input type="range" id="brushSize" min="3" max="18" value="8">
+  </div>
+  <div class="control-group">
+    <span class="control-label">Decay</span>
+    <input type="range" id="decayRange" min="300" max="3000" value="1100" step="100">
+  </div>
+  <div class="control-group">
+    <button class="ghost-btn" id="clearBtn">Clear canvas</button>
+  </div>
+</div>
+
+<footer>
+  <div><b>Gesture:</b> pinch thumb + index finger to draw, release to lift the pen.</div>
+  <div><b>Note:</b> hand tracking runs entirely on-device via MediaPipe — no video is uploaded.</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script>
+(function(){
+  const video = document.getElementById('video');
+  const overlay = document.getElementById('overlay');
+  const ctx = overlay.getContext('2d');
+  const stage = document.getElementById('stage');
+  const permission = document.getElementById('permission');
+  const startBtn = document.getElementById('startBtn');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const fpsEl = document.getElementById('fps');
+  const readout = document.getElementById('readout');
+  const pinchBadge = document.getElementById('pinchBadge');
+  const clearBtn = document.getElementById('clearBtn');
+  const brushSize = document.getElementById('brushSize');
+  const decayRange = document.getElementById('decayRange');
+
+  let currentColor = '#ffb454';
+  document.querySelectorAll('.swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=>{
+      document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
+      sw.classList.add('selected');
+      currentColor = sw.dataset.color;
+    });
+  });
+
+  // trail = array of {x,y,t,color,size}
+  let trail = [];
+  let isPinching = false;
+  let lastFrameTime = performance.now();
+  let fpsSmoothed = 0;
+
+  function resizeCanvas(){
+    overlay.width = stage.clientWidth;
+    overlay.height = stage.clientHeight;
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  clearBtn.addEventListener('click', ()=>{ trail = []; });
+
+  function dist(a,b){
+    return Math.hypot(a.x-b.x, a.y-b.y);
+  }
+
+  function onResults(results){
+    const now = performance.now();
+    const dt = now - lastFrameTime;
+    lastFrameTime = now;
+    const instFps = 1000/dt;
+    fpsSmoothed = fpsSmoothed ? fpsSmoothed*0.9 + instFps*0.1 : instFps;
+    fpsEl.textContent = Math.round(fpsSmoothed);
+
+    ctx.clearRect(0,0,overlay.width, overlay.height);
+
+    const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+    statusDot.classList.toggle('live', hasHand);
+    statusText.textContent = hasHand ? 'tracking hand' : 'camera live · no hand';
+
+    if(hasHand){
+      const lm = results.multiHandLandmarks[0];
+      const indexTip = lm[8];
+      const thumbTip = lm[4];
+
+      // normalized -> pixel, note video is mirrored via CSS so we flip x for drawing math consistency
+      const px = (1 - indexTip.x) * overlay.width;
+      const py = indexTip.y * overlay.height;
+
+      const pinchDist = dist(indexTip, thumbTip);
+      isPinching = pinchDist < 0.06;
+
+      pinchBadge.classList.toggle('active', isPinching);
+      pinchBadge.textContent = isPinching ? 'DRAWING' : 'PINCH TO DRAW';
+
+      readout.innerHTML =
+        'X <span>' + Math.round(px).toString().padStart(4,'0') + '</span><br>' +
+        'Y <span>' + Math.round(py).toString().padStart(4,'0') + '</span>';
+
+      if(isPinching){
+        trail.push({
+          x: px, y: py, t: now,
+          color: currentColor,
+          size: parseInt(brushSize.value, 10)
+        });
+      }
+
+      // draw a small tracking reticle at fingertip
+      ctx.save();
+      ctx.strokeStyle = isPinching ? currentColor : 'rgba(255,255,255,.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(px, py, 14, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      readout.innerHTML = 'X <span class="off">— — —</span><br>Y <span class="off">— — —</span>';
+      pinchBadge.classList.remove('active');
+      pinchBadge.textContent = 'PINCH TO DRAW';
+    }
+
+    // prune + draw trail with decay (light-painting afterglow)
+    const decayMs = parseInt(decayRange.value, 10);
+    trail = trail.filter(p => now - p.t < decayMs);
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for(let i=1; i<trail.length; i++){
+      const a = trail[i-1];
+      const b = trail[i];
+      if(dist(
+        {x:a.x/overlay.width, y:a.y/overlay.height},
+        {x:b.x/overlay.width, y:b.y/overlay.height}
+      ) > 0.12) continue; // avoid connecting across a lifted pen
+
+      const age = (now - b.t) / decayMs;
+      const alpha = Math.max(0, 1 - age);
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = b.color;
+      ctx.shadowColor = b.color;
+      ctx.shadowBlur = 12 * alpha;
+      ctx.lineWidth = b.size * (0.5 + 0.5*alpha);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  let camera = null;
+
+  async function start(){
+    permission.style.display = 'none';
+    statusText.textContent = 'requesting camera…';
+
+    try{
+      const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.6
+      });
+      hands.onResults(onResults);
+
+      resizeCanvas();
+
+      camera = new Camera(video, {
+        onFrame: async () => { await hands.send({image: video}); },
+        width: 960,
+        height: 720
+      });
+      await camera.start();
+      statusText.textContent = 'camera live · no hand';
+    } catch(err){
+      console.error(err);
+      statusText.textContent = 'camera access denied';
+      permission.style.display = 'flex';
+      permission.querySelector('p').textContent =
+        'Camera access was blocked or MediaPipe failed to load (' + (err.message || 'unknown error') +
+        '). Allow camera permissions and reload, or open this file directly in Chrome/Edge.';
+    }
+  }
+
+  startBtn.addEventListener('click', start);
+  resizeCanvas();
+})();
+</script>
+</body>
+</html>
