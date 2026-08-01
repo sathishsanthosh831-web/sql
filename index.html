@@ -3,274 +3,173 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIR CANVAS — Light-Trail Hand Tracker</title>
+<title>J.A.R.V.I.S // AIR CONSTRUCT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #12101c;
-    --bg-deep: #0a0912;
-    --panel: #1a1728;
-    --line: #2e2a42;
-    --amber: #ffb454;
-    --cyan: #5eead4;
-    --violet: #b39ddb;
-    --paper: #f4f0ff;
-    --dim: #8b85a3;
+    --void:#02070c;
+    --deep:#050f18;
+    --panel: rgba(4,22,32,.55);
+    --cyan:#2fe8ff;
+    --cyan-soft: rgba(47,232,255,.35);
+    --cyan-dim:#0e4a5c;
+    --amber:#ffb454;
+    --white:#eafcff;
+    --dim:#5c8a94;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
     background:
-      radial-gradient(ellipse at 20% -10%, #221d38 0%, transparent 55%),
-      radial-gradient(ellipse at 100% 110%, #1c1830 0%, transparent 50%),
-      var(--bg);
-    color:var(--paper);
-    font-family:'Space Grotesk', sans-serif;
+      radial-gradient(ellipse at 50% 0%, #08202c 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 100%, #041018 0%, transparent 55%),
+      var(--void);
+    color:var(--white);
+    font-family:'JetBrains Mono', monospace;
     min-height:100vh;
     display:flex;
     flex-direction:column;
     align-items:center;
-    padding:28px 16px 60px;
+    padding:22px 14px 50px;
+    overflow-x:hidden;
   }
-  .mono{ font-family:'JetBrains Mono', monospace; }
+  .hud{ font-family:'Orbitron', sans-serif; }
 
   header{
-    width:100%;
-    max-width:980px;
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-end;
-    margin-bottom:22px;
-    flex-wrap:wrap;
-    gap:10px;
+    width:100%; max-width:1040px;
+    display:flex; justify-content:space-between; align-items:flex-end;
+    margin-bottom:16px; flex-wrap:wrap; gap:10px;
   }
   .eyebrow{
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px;
-    letter-spacing:.22em;
-    color:var(--cyan);
-    text-transform:uppercase;
+    font-size:10px; letter-spacing:.3em; color:var(--cyan);
+    text-transform:uppercase; opacity:.8;
   }
   h1{
-    margin:4px 0 0;
-    font-size:clamp(28px, 4.2vw, 42px);
-    font-weight:700;
-    letter-spacing:-0.01em;
-    line-height:1;
+    margin:6px 0 0; font-family:'Orbitron', sans-serif;
+    font-size:clamp(24px,4vw,36px); font-weight:800;
+    letter-spacing:.04em; color:var(--white);
+    text-shadow:0 0 18px var(--cyan-soft);
   }
-  h1 span{ color:var(--amber); }
-  .status-line{
-    font-family:'JetBrains Mono', monospace;
-    font-size:12px;
-    color:var(--dim);
-    text-align:right;
-  }
-  .status-line b{ color:var(--paper); font-weight:600; }
-  .dot{
-    display:inline-block;
-    width:7px; height:7px;
-    border-radius:50%;
-    background:#5a5470;
-    margin-right:6px;
-    vertical-align:middle;
-  }
-  .dot.live{ background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
+  h1 span{ color:var(--cyan); }
+  .status-line{ font-size:11px; color:var(--dim); text-align:right; line-height:1.8; }
+  .status-line b{ color:var(--cyan); font-weight:600; }
+  .dot{ display:inline-block; width:7px;height:7px;border-radius:50%; background:#274652; margin-right:6px; }
+  .dot.live{ background:var(--cyan); box-shadow:0 0 10px var(--cyan); animation:pulse 1.4s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.4;} }
 
   .stage{
-    position:relative;
-    width:100%;
-    max-width:980px;
-    aspect-ratio:4/3;
-    background:var(--bg-deep);
-    border-radius:4px;
-    overflow:hidden;
-    border:1px solid var(--line);
-    box-shadow: 0 30px 80px -30px rgba(0,0,0,.7);
+    position:relative; width:100%; max-width:1040px; aspect-ratio:4/3;
+    background:var(--deep); border-radius:2px; overflow:hidden;
+    border:1px solid var(--cyan-dim);
+    box-shadow: 0 0 0 1px rgba(47,232,255,.08), 0 40px 90px -30px rgba(0,0,0,.85);
   }
-  video, canvas{
-    position:absolute;
-    top:0; left:0;
-    width:100%;
-    height:100%;
-  }
-  video{
-    transform: scaleX(-1); /* mirror the visible feed only */
-    object-fit: cover;
-  }
-  #overlay{ z-index:2; } /* not mirrored — JS already flips the x coordinate to match */
+  video, canvas{ position:absolute; top:0; left:0; width:100%; height:100%; }
+  video{ transform: scaleX(-1); object-fit:cover; filter:saturate(.6) brightness(.55) contrast(1.15) hue-rotate(-6deg); }
+  #overlay{ z-index:3; }
 
-  /* viewfinder corner brackets — signature element */
-  .bracket{
-    position:absolute;
-    width:26px; height:26px;
-    border:2px solid var(--amber);
-    opacity:.85;
-    z-index:3;
-    pointer-events:none;
+  /* hex grid ambience */
+  .hexgrid{
+    position:absolute; inset:0; z-index:1; opacity:.16; pointer-events:none;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(47,232,255,.5) 0px, transparent 1px, transparent 38px),
+      repeating-linear-gradient(90deg, rgba(47,232,255,.5) 0px, transparent 1px, transparent 38px);
   }
-  .bracket.tl{ top:14px; left:14px; border-right:none; border-bottom:none; }
-  .bracket.tr{ top:14px; right:14px; border-left:none; border-bottom:none; }
-  .bracket.bl{ bottom:14px; left:14px; border-right:none; border-top:none; }
-  .bracket.br{ bottom:14px; right:14px; border-left:none; border-top:none; }
+  .scanline{
+    position:absolute; left:0; right:0; height:120px; z-index:2; pointer-events:none;
+    background:linear-gradient(180deg, transparent, rgba(47,232,255,.10) 45%, rgba(47,232,255,.22) 50%, rgba(47,232,255,.10) 55%, transparent);
+    animation: sweep 5s linear infinite;
+    mix-blend-mode:screen;
+  }
+  @keyframes sweep{ 0%{ top:-120px; } 100%{ top:100%; } }
+
+  .bracket{ position:absolute; width:30px; height:30px; border:2px solid var(--cyan); opacity:.9; z-index:4; pointer-events:none; filter:drop-shadow(0 0 6px var(--cyan-soft)); }
+  .bracket.tl{ top:12px; left:12px; border-right:none; border-bottom:none; }
+  .bracket.tr{ top:12px; right:12px; border-left:none; border-bottom:none; }
+  .bracket.bl{ bottom:12px; left:12px; border-right:none; border-top:none; }
+  .bracket.br{ bottom:12px; right:12px; border-left:none; border-top:none; }
 
   .readout{
-    position:absolute;
-    top:14px; left:50px;
-    z-index:3;
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px;
-    color:var(--cyan);
-    letter-spacing:.04em;
-    text-shadow: 0 0 8px rgba(94,234,212,.5);
-    line-height:1.6;
-    pointer-events:none;
+    position:absolute; top:14px; left:54px; z-index:4;
+    font-size:11px; color:var(--cyan); letter-spacing:.05em; line-height:1.7;
+    text-shadow:0 0 8px var(--cyan-soft); pointer-events:none;
   }
   .readout .off{ color:var(--dim); text-shadow:none; }
 
-  .pinch-badge{
-    position:absolute;
-    bottom:14px; left:50px;
-    z-index:3;
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px;
-    padding:4px 10px;
-    border-radius:2px;
-    border:1px solid var(--line);
-    background:rgba(10,9,18,.6);
-    backdrop-filter: blur(4px);
-    color:var(--dim);
-    transition: all .15s ease;
+  .gesture-badge{
+    position:absolute; bottom:14px; left:54px; z-index:4;
+    font-family:'Orbitron', sans-serif; font-size:10px; letter-spacing:.15em;
+    padding:6px 14px; border:1px solid var(--cyan-dim); border-radius:2px;
+    background:rgba(2,7,12,.65); backdrop-filter:blur(4px); color:var(--dim);
+    transition:all .15s ease; text-transform:uppercase;
   }
-  .pinch-badge.active{
-    color:var(--bg-deep);
-    background:var(--amber);
-    border-color:var(--amber);
-    box-shadow:0 0 18px rgba(255,180,84,.6);
+  .gesture-badge.active{
+    color:var(--void); background:var(--cyan); border-color:var(--cyan);
+    box-shadow:0 0 20px var(--cyan-soft);
   }
+
+  .panel-count{
+    position:absolute; bottom:14px; right:54px; z-index:4;
+    font-size:11px; color:var(--dim); text-align:right;
+  }
+  .panel-count b{ color:var(--amber); font-family:'Orbitron', sans-serif; }
 
   .permission{
-    position:absolute;
-    inset:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-direction:column;
-    gap:14px;
-    z-index:5;
-    background:var(--bg-deep);
-    text-align:center;
-    padding:30px;
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:16px; z-index:6; background:var(--void); text-align:center; padding:30px;
   }
-  .permission p{ color:var(--dim); max-width:420px; font-size:14px; line-height:1.6; margin:0; }
-  button{
-    font-family:'Space Grotesk', sans-serif;
-    font-weight:600;
-    font-size:14px;
-    border:none;
-    cursor:pointer;
-    transition: all .15s ease;
+  .ring{
+    width:64px; height:64px; border-radius:50%;
+    border:2px solid var(--cyan-dim); border-top-color:var(--cyan);
+    animation:spin 1.1s linear infinite;
   }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .permission p{ color:var(--dim); max-width:440px; font-size:13px; line-height:1.7; margin:0; }
+  button{ font-family:'Orbitron', sans-serif; font-weight:700; font-size:13px; border:none; cursor:pointer; transition:all .15s ease; letter-spacing:.08em; text-transform:uppercase; }
   #startBtn{
-    background:var(--amber);
-    color:var(--bg-deep);
-    padding:12px 26px;
-    border-radius:3px;
-    letter-spacing:.02em;
+    background:transparent; color:var(--cyan); padding:13px 30px; border:1.5px solid var(--cyan);
+    border-radius:2px; box-shadow:0 0 0 rgba(47,232,255,0);
   }
-  #startBtn:hover{ box-shadow:0 0 24px rgba(255,180,84,.5); transform:translateY(-1px); }
+  #startBtn:hover{ background:var(--cyan); color:var(--void); box-shadow:0 0 28px var(--cyan-soft); }
 
-  /* controls */
   .controls{
-    width:100%;
-    max-width:980px;
-    margin-top:16px;
-    display:flex;
-    gap:14px;
-    flex-wrap:wrap;
-    align-items:center;
-    justify-content:space-between;
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:4px;
-    padding:16px 20px;
+    width:100%; max-width:1040px; margin-top:14px; display:flex; gap:14px; flex-wrap:wrap;
+    align-items:center; justify-content:space-between;
+    background:var(--panel); border:1px solid var(--cyan-dim); border-radius:2px; padding:14px 18px;
+    backdrop-filter:blur(6px);
   }
   .control-group{ display:flex; align-items:center; gap:10px; }
-  .control-label{
-    font-family:'JetBrains Mono', monospace;
-    font-size:10px;
-    letter-spacing:.14em;
-    color:var(--dim);
-    text-transform:uppercase;
-    margin-right:2px;
-  }
-  .swatch{
-    width:22px; height:22px;
-    border-radius:50%;
-    border:2px solid transparent;
-    cursor:pointer;
-    padding:0;
-  }
-  .swatch.selected{ border-color:var(--paper); transform:scale(1.15); }
+  .control-label{ font-family:'Orbitron', sans-serif; font-size:9px; letter-spacing:.2em; color:var(--dim); text-transform:uppercase; }
+  .swatch{ width:20px; height:20px; border-radius:2px; border:1.5px solid transparent; cursor:pointer; padding:0; transform:rotate(45deg); }
+  .swatch.selected{ border-color:var(--white); box-shadow:0 0 10px currentColor; }
+  input[type=range]{ -webkit-appearance:none; width:100px; height:2px; background:var(--cyan-dim); outline:none; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--cyan); cursor:pointer; box-shadow:0 0 8px var(--cyan); }
+  .ghost-btn{ background:transparent; color:var(--dim); border:1px solid var(--cyan-dim) !important; padding:8px 16px; border-radius:2px; font-size:10px; }
+  .ghost-btn:hover{ color:var(--cyan); border-color:var(--cyan) !important; }
 
-  input[type=range]{
-    -webkit-appearance:none;
-    width:110px;
-    height:3px;
-    background:var(--line);
-    border-radius:2px;
-    outline:none;
-  }
-  input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none;
-    width:13px; height:13px;
-    border-radius:50%;
-    background:var(--cyan);
-    cursor:pointer;
-    box-shadow:0 0 6px rgba(94,234,212,.7);
-  }
+  footer{ max-width:1040px; width:100%; margin-top:16px; font-size:11px; color:var(--dim); line-height:1.8; }
+  footer b{ color:var(--cyan); }
 
-  .ghost-btn{
-    background:transparent;
-    color:var(--dim);
-    border:1px solid var(--line) !important;
-    padding:8px 16px;
-    border-radius:3px;
-    font-size:12px;
-  }
-  .ghost-btn:hover{ color:var(--paper); border-color:var(--dim) !important; }
-
-  footer{
-    max-width:980px;
-    width:100%;
-    margin-top:18px;
-    font-family:'JetBrains Mono', monospace;
-    font-size:11px;
-    color:var(--dim);
-    line-height:1.7;
-  }
-  footer b{ color:var(--violet); }
-
-  @media (prefers-reduced-motion: reduce){
-    * { transition:none !important; }
-  }
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } }
 </style>
 </head>
 <body>
 
 <header>
   <div>
-    <div class="eyebrow">Gesture-tracked light painting · runs locally in-browser</div>
-    <h1>AIR<span>CANVAS</span></h1>
+    <div class="eyebrow">gesture-constructed holograms · on-device vision</div>
+    <h1 class="hud">AIR<span>CONSTRUCT</span></h1>
   </div>
-  <div class="status-line mono">
-    <div><span class="dot" id="statusDot"></span><span id="statusText">camera off</span></div>
-    <div><b id="fps">0</b> fps</div>
+  <div class="status-line hud">
+    <div><span class="dot" id="statusDot"></span><span id="statusText">SYSTEM STANDBY</span></div>
+    <div><b id="fps">0</b> FPS</div>
   </div>
 </header>
 
 <div class="stage" id="stage">
   <video id="video" playsinline></video>
+  <div class="hexgrid"></div>
+  <div class="scanline"></div>
   <canvas id="overlay"></canvas>
 
   <div class="bracket tl"></div>
@@ -278,43 +177,41 @@
   <div class="bracket bl"></div>
   <div class="bracket br"></div>
 
-  <div class="readout" id="readout">
+  <div class="readout hud" id="readout">
     X <span class="off">— — —</span><br>
     Y <span class="off">— — —</span>
   </div>
 
-  <div class="pinch-badge" id="pinchBadge">PINCH TO DRAW</div>
+  <div class="gesture-badge" id="gestureBadge">HAND NOT LOCKED</div>
+  <div class="panel-count">PANELS <b id="panelCount">0</b></div>
 
   <div class="permission" id="permission">
-    <div class="eyebrow" style="color:var(--amber)">01 / ALLOW CAMERA</div>
-    <p>Draw in mid-air using your index finger. Pinch your thumb and index finger together to lower the "pen"; open them to lift it. Nothing is recorded or leaves your browser.</p>
-    <button id="startBtn">Enable camera & start</button>
+    <div class="ring"></div>
+    <div class="eyebrow hud" style="color:var(--amber)">SYSTEM // OFFLINE</div>
+    <p>Pinch your thumb and index finger, then drag to construct a holographic panel. Release to lock it in place. All tracking runs on-device — nothing leaves your browser.</p>
+    <button id="startBtn">Initialize</button>
   </div>
 </div>
 
 <div class="controls">
   <div class="control-group">
-    <span class="control-label">Ink</span>
-    <button class="swatch selected" style="background:#ffb454" data-color="#ffb454"></button>
-    <button class="swatch" style="background:#5eead4" data-color="#5eead4"></button>
-    <button class="swatch" style="background:#b39ddb" data-color="#b39ddb"></button>
-    <button class="swatch" style="background:#f4f0ff" data-color="#f4f0ff"></button>
+    <span class="control-label hud">Tint</span>
+    <button class="swatch selected" style="background:#2fe8ff;color:#2fe8ff" data-color="#2fe8ff"></button>
+    <button class="swatch" style="background:#ffb454;color:#ffb454" data-color="#ffb454"></button>
+    <button class="swatch" style="background:#b39ddb;color:#b39ddb" data-color="#b39ddb"></button>
+    <button class="swatch" style="background:#ff5c7a;color:#ff5c7a" data-color="#ff5c7a"></button>
   </div>
   <div class="control-group">
-    <span class="control-label">Weight</span>
-    <input type="range" id="brushSize" min="3" max="18" value="8">
+    <span class="control-label hud">Line</span>
+    <input type="range" id="lineWeight" min="1" max="5" value="2">
   </div>
   <div class="control-group">
-    <span class="control-label">Decay</span>
-    <input type="range" id="decayRange" min="300" max="3000" value="1100" step="100">
-  </div>
-  <div class="control-group">
-    <button class="ghost-btn" id="clearBtn">Clear canvas</button>
+    <button class="ghost-btn hud" id="clearBtn">Purge panels</button>
   </div>
 </div>
 
-<footer>
-  <div><b>Gesture:</b> pinch thumb + index finger to draw, release to lift the pen.</div>
+<footer class="hud" style="font-family:'JetBrains Mono',monospace;">
+  <div><b>Gesture:</b> pinch to anchor a corner, drag, release to lock the panel in place.</div>
   <div><b>Note:</b> hand tracking runs entirely on-device via MediaPipe — no video is uploaded.</div>
 </footer>
 
@@ -332,12 +229,12 @@
   const statusText = document.getElementById('statusText');
   const fpsEl = document.getElementById('fps');
   const readout = document.getElementById('readout');
-  const pinchBadge = document.getElementById('pinchBadge');
+  const gestureBadge = document.getElementById('gestureBadge');
+  const panelCountEl = document.getElementById('panelCount');
   const clearBtn = document.getElementById('clearBtn');
-  const brushSize = document.getElementById('brushSize');
-  const decayRange = document.getElementById('decayRange');
+  const lineWeight = document.getElementById('lineWeight');
 
-  let currentColor = '#ffb454';
+  let currentColor = '#2fe8ff';
   document.querySelectorAll('.swatch').forEach(sw=>{
     sw.addEventListener('click', ()=>{
       document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
@@ -346,9 +243,11 @@
     });
   });
 
-  // trail = array of {x,y,t,color,size}
-  let trail = [];
+  let panels = [];      // locked-in holographic boxes {x1,y1,x2,y2,color,weight,id,bornAt}
+  let panelSeq = 0;
   let isPinching = false;
+  let dragStart = null;  // {x,y} in pixel space
+  let dragCurrent = null;
   let lastFrameTime = performance.now();
   let fpsSmoothed = 0;
 
@@ -358,10 +257,52 @@
   }
   window.addEventListener('resize', resizeCanvas);
 
-  clearBtn.addEventListener('click', ()=>{ trail = []; });
+  clearBtn.addEventListener('click', ()=>{ panels = []; panelCountEl.textContent = '0'; });
 
-  function dist(a,b){
-    return Math.hypot(a.x-b.x, a.y-b.y);
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+  function drawHoloBox(x1,y1,x2,y2,color,weight,alpha,pulse){
+    const x = Math.min(x1,x2), y = Math.min(y1,y2);
+    const w = Math.abs(x2-x1), h = Math.abs(y2-y1);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // translucent fill
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha * 0.08;
+    ctx.fillRect(x,y,w,h);
+
+    // border
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 14 * (pulse ? (0.7+0.3*Math.sin(performance.now()/300)) : 1);
+    ctx.lineWidth = weight;
+    ctx.setLineDash([8,6]);
+    ctx.strokeRect(x,y,w,h);
+    ctx.setLineDash([]);
+
+    // corner ticks
+    const tick = 14;
+    ctx.lineWidth = weight + 1;
+    [[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]].forEach(([cx,cy,dx,dy])=>{
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + dy*tick);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(cx + dx*tick, cy);
+      ctx.stroke();
+    });
+    ctx.restore();
+
+    // label
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = "10px 'JetBrains Mono', monospace";
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 6;
+    ctx.fillText(Math.round(w) + ' x ' + Math.round(h), x + 6, y - 8 < 10 ? y + h + 16 : y - 8);
+    ctx.restore();
   }
 
   function onResults(results){
@@ -376,84 +317,92 @@
 
     const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
     statusDot.classList.toggle('live', hasHand);
-    statusText.textContent = hasHand ? 'tracking hand' : 'camera live · no hand';
+    statusText.textContent = hasHand ? 'HAND TRACKED' : 'SCANNING…';
 
     if(hasHand){
       const lm = results.multiHandLandmarks[0];
       const indexTip = lm[8];
       const thumbTip = lm[4];
 
-      // normalized -> pixel, note video is mirrored via CSS so we flip x for drawing math consistency
       const px = (1 - indexTip.x) * overlay.width;
       const py = indexTip.y * overlay.height;
 
       const pinchDist = dist(indexTip, thumbTip);
-      isPinching = pinchDist < 0.06;
-
-      pinchBadge.classList.toggle('active', isPinching);
-      pinchBadge.textContent = isPinching ? 'DRAWING' : 'PINCH TO DRAW';
+      const nowPinching = pinchDist < 0.06;
 
       readout.innerHTML =
         'X <span>' + Math.round(px).toString().padStart(4,'0') + '</span><br>' +
         'Y <span>' + Math.round(py).toString().padStart(4,'0') + '</span>';
 
-      if(isPinching){
-        trail.push({
-          x: px, y: py, t: now,
-          color: currentColor,
-          size: parseInt(brushSize.value, 10)
-        });
+      if(nowPinching && !isPinching){
+        // pinch just started -> anchor corner
+        dragStart = {x:px, y:py};
       }
+      if(nowPinching){
+        dragCurrent = {x:px, y:py};
+      }
+      if(!nowPinching && isPinching && dragStart && dragCurrent){
+        // pinch released -> lock panel if it has real size
+        if(Math.abs(dragCurrent.x-dragStart.x) > 20 && Math.abs(dragCurrent.y-dragStart.y) > 20){
+          panelSeq++;
+          panels.push({
+            x1: dragStart.x, y1: dragStart.y,
+            x2: dragCurrent.x, y2: dragCurrent.y,
+            color: currentColor,
+            weight: parseInt(lineWeight.value,10),
+            id: panelSeq,
+            bornAt: now
+          });
+          panelCountEl.textContent = panels.length;
+        }
+        dragStart = null; dragCurrent = null;
+      }
+      isPinching = nowPinching;
 
-      // draw a small tracking reticle at fingertip
+      gestureBadge.classList.toggle('active', isPinching);
+      gestureBadge.textContent = isPinching ? 'CONSTRUCTING PANEL' : 'HAND LOCKED · READY';
+
+      // fingertip reticle
       ctx.save();
-      ctx.strokeStyle = isPinching ? currentColor : 'rgba(255,255,255,.35)';
+      ctx.strokeStyle = isPinching ? currentColor : 'rgba(234,252,255,.5)';
+      ctx.shadowColor = isPinching ? currentColor : 'transparent';
+      ctx.shadowBlur = isPinching ? 10 : 0;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(px, py, 14, 0, Math.PI*2);
+      ctx.arc(px, py, 12, 0, Math.PI*2);
+      ctx.moveTo(px-18,py); ctx.lineTo(px-6,py);
+      ctx.moveTo(px+6,py); ctx.lineTo(px+18,py);
+      ctx.moveTo(px,py-18); ctx.lineTo(px,py-6);
+      ctx.moveTo(px,py+6); ctx.lineTo(px,py+18);
       ctx.stroke();
       ctx.restore();
+
     } else {
       readout.innerHTML = 'X <span class="off">— — —</span><br>Y <span class="off">— — —</span>';
-      pinchBadge.classList.remove('active');
-      pinchBadge.textContent = 'PINCH TO DRAW';
+      gestureBadge.classList.remove('active');
+      gestureBadge.textContent = 'HAND NOT LOCKED';
+      isPinching = false;
+      dragStart = null; dragCurrent = null;
     }
 
-    // prune + draw trail with decay (light-painting afterglow)
-    const decayMs = parseInt(decayRange.value, 10);
-    trail = trail.filter(p => now - p.t < decayMs);
-
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    for(let i=1; i<trail.length; i++){
-      const a = trail[i-1];
-      const b = trail[i];
-      if(dist(
-        {x:a.x/overlay.width, y:a.y/overlay.height},
-        {x:b.x/overlay.width, y:b.y/overlay.height}
-      ) > 0.12) continue; // avoid connecting across a lifted pen
-
-      const age = (now - b.t) / decayMs;
-      const alpha = Math.max(0, 1 - age);
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = b.color;
-      ctx.shadowColor = b.color;
-      ctx.shadowBlur = 12 * alpha;
-      ctx.lineWidth = b.size * (0.5 + 0.5*alpha);
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
+    // live preview box while dragging
+    if(isPinching && dragStart && dragCurrent){
+      drawHoloBox(dragStart.x, dragStart.y, dragCurrent.x, dragCurrent.y, currentColor, parseInt(lineWeight.value,10), 0.9, false);
     }
-    ctx.restore();
+
+    // locked panels, gentle idle pulse + fade-in materialize
+    panels.forEach(p=>{
+      const age = now - p.bornAt;
+      const materialize = Math.min(1, age / 260);
+      drawHoloBox(p.x1,p.y1,p.x2,p.y2,p.color,p.weight, materialize, true);
+    });
   }
 
   let camera = null;
 
   async function start(){
     permission.style.display = 'none';
-    statusText.textContent = 'requesting camera…';
+    statusText.textContent = 'BOOTING…';
 
     try{
       const hands = new Hands({
@@ -462,8 +411,8 @@
       hands.setOptions({
         maxNumHands: 1,
         modelComplexity: 1,
-        minDetectionConfidence: 0.7,
-        minTrackingConfidence: 0.6
+        minDetectionConfidence: 0.65,
+        minTrackingConfidence: 0.55
       });
       hands.onResults(onResults);
 
@@ -475,14 +424,14 @@
         height: 720
       });
       await camera.start();
-      statusText.textContent = 'camera live · no hand';
+      statusText.textContent = 'SCANNING…';
     } catch(err){
       console.error(err);
-      statusText.textContent = 'camera access denied';
+      statusText.textContent = 'CAMERA BLOCKED';
       permission.style.display = 'flex';
       permission.querySelector('p').textContent =
         'Camera access was blocked or MediaPipe failed to load (' + (err.message || 'unknown error') +
-        '). Allow camera permissions and reload, or open this file directly in Chrome/Edge.';
+        '). Allow camera permissions and reload, or open this file via https:// hosting.';
     }
   }
 
